@@ -1,5 +1,5 @@
 import { createFileRoute, Link, Outlet, redirect, useNavigate, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, ShoppingCart, Package, Truck, PackagePlus, FileBarChart, Moon, Sun, LogOut, UserCircle2 } from "lucide-react";
+import { LayoutDashboard, ShoppingCart, Package, Truck, PackagePlus, FileBarChart, Moon, Sun, LogOut, UserCircle2, Bell, AlertTriangle, Clock } from "lucide-react";
 import { toast } from "sonner";
 import {
   Sidebar,
@@ -16,8 +16,9 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Logo } from "@/components/Logo";
-import { session, useStore } from "@/lib/store";
+import { diasParaVencer, session, useCurrentUser, useStore } from "@/lib/store";
 
 export const Route = createFileRoute("/_app")({
   ssr: false,
@@ -68,10 +69,62 @@ function AppSidebar() {
   );
 }
 
+function Notifications() {
+  const meds = useStore((s) => s.meds);
+  const criticos = meds.filter((m) => m.stock < 10);
+  const porVencer = meds.filter((m) => m.stock >= 10 && diasParaVencer(m.caducidad) <= 30);
+  const total = criticos.length + porVencer.length;
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" size="icon" className="relative" aria-label="Notificaciones">
+          <Bell />
+          {total > 0 && (
+            <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground animate-in zoom-in">
+              {total}
+            </span>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="glass w-80 p-0">
+        <div className="border-b px-4 py-3 font-bold">Alertas ({total})</div>
+        <div className="max-h-80 overflow-auto p-2">
+          {!total && <p className="p-4 text-center text-sm text-muted-foreground">Sin alertas 🎉</p>}
+          {criticos.map((m) => (
+            <div key={m.id} className="flex items-start gap-3 rounded-lg p-2 hover:bg-accent">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+              <div className="text-sm">
+                <p className="font-semibold">{m.nombre}</p>
+                <p className="text-xs text-muted-foreground">Stock crítico: {m.stock} unidades</p>
+              </div>
+            </div>
+          ))}
+          {porVencer.map((m) => (
+            <div key={m.id} className="flex items-start gap-3 rounded-lg p-2 hover:bg-accent">
+              <Clock className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+              <div className="text-sm">
+                <p className="font-semibold">{m.nombre}</p>
+                <p className="text-xs text-muted-foreground">Vence en {diasParaVencer(m.caducidad)} días</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="border-t p-2">
+          <Button asChild variant="ghost" size="sm" className="w-full">
+            <Link to="/inventario">Ver inventario</Link>
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function AppLayout() {
   const navigate = useNavigate();
   const dark = useStore((s) => s.dark);
   const toggleDark = useStore((s) => s.toggleDark);
+  const user = useCurrentUser();
+  const path = useRouterState({ select: (s) => s.location.pathname });
   const logout = () => {
     session.clear();
     toast.success("Sesión cerrada");
@@ -82,12 +135,17 @@ function AppLayout() {
       <div className="flex min-h-screen w-full bg-app">
         <AppSidebar />
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="glass sticky top-0 z-20 flex h-14 items-center gap-2 rounded-none border-x-0 border-t-0 px-3 sm:px-5">
+          <header className="glass sticky top-0 z-20 flex h-14 items-center gap-1.5 rounded-none border-x-0 border-t-0 px-3 sm:gap-2 sm:px-5">
             <SidebarTrigger />
             <div className="flex-1" />
-            <div className="hidden items-center gap-2 text-sm font-semibold sm:flex">
-              <UserCircle2 className="h-5 w-5 text-primary" /> Admin
+            <div className="mr-1 hidden items-center gap-2 sm:flex">
+              <UserCircle2 className="h-7 w-7 text-primary" />
+              <div className="leading-tight">
+                <p className="text-sm font-semibold">{user?.nombre ?? "Admin"}</p>
+                <p className="text-[11px] text-muted-foreground">{user?.rol ?? "Administrador"}</p>
+              </div>
             </div>
+            <Notifications />
             <Button variant="ghost" size="icon" onClick={toggleDark} aria-label="Cambiar tema">
               {dark ? <Sun /> : <Moon />}
             </Button>
@@ -96,7 +154,9 @@ function AppLayout() {
             </Button>
           </header>
           <main className="mx-auto w-full max-w-[1800px] flex-1 p-4 sm:p-6 lg:p-8">
-            <Outlet />
+            <div key={path} className="animate-in fade-in slide-in-from-bottom-3 duration-500">
+              <Outlet />
+            </div>
           </main>
           <footer className="border-t px-4 py-3 text-center text-xs text-muted-foreground">
             Versión de prototipo. Los datos presentados son demostrativos. Las funciones de backend y seguridad requieren
