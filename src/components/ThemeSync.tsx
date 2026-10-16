@@ -1,8 +1,8 @@
 import { useEffect } from "react";
-import { useStore } from "@/lib/store";
+import { useUI } from "@/lib/store";
 
 export function ThemeSync() {
-  const dark = useStore((s) => s.dark);
+  const dark = useUI((s) => s.dark);
   useEffect(() => {
     document.documentElement.classList.toggle("dark", dark);
   }, [dark]);
