@@ -182,7 +182,7 @@ function Login() {
                   </SelectContent>
                 </Select>
               </div>
-              <Button type="submit" variant="success" size="lg" className="w-full">Crear cuenta</Button>
+              <Button type="submit" variant="success" size="lg" className="w-full" disabled={regLoading}>{regLoading ? <><Loader2 className="animate-spin" /> Creando...</> : "Crear cuenta"}</Button>
             </form>
           </TabsContent>
         </Tabs>
