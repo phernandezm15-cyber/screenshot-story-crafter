@@ -47,17 +47,16 @@ const Err = ({ m }: { m?: string }) => (m ? <p className="text-xs text-destructi
 
 function Login() {
   const navigate = useNavigate();
-  const users = useStore((s) => s.users);
-  const registrarUsuario = useStore((s) => s.registrarUsuario);
   const [tab, setTab] = useState("login");
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [loading, setLoading] = useState(false);
+  const [regLoading, setRegLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [reg, setReg] = useState({ nombre: "", correo: "", password: "", rol: "Empleado" as Rol });
   const [regErr, setRegErr] = useState<Record<string, string>>({});
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const er: Record<string, string> = {};
     if (!email.trim()) er.email = "El correo es obligatorio";
@@ -66,20 +65,21 @@ function Login() {
     setErrors(er);
     if (Object.keys(er).length) return void toast.error("Revisa los campos del formulario");
     setLoading(true);
-    setTimeout(() => {
-      const u = users.find((x) => x.correo.toLowerCase() === email.trim().toLowerCase() && x.password === pass);
-      if (!u) {
-        setLoading(false);
-        toast.error("Credenciales incorrectas", { description: "Correo o contraseña no coinciden" });
-        return;
-      }
-      session.set(u.id);
-      toast.success(`Bienvenido, ${u.nombre}`, { description: `Rol: ${u.rol}` });
-      navigate({ to: "/dashboard" });
-    }, 2000);
+    const [{ data, error }] = await Promise.all([
+      supabase.auth.signInWithPassword({ email: email.trim(), password: pass }),
+      new Promise((r) => setTimeout(r, 2000)),
+    ]);
+    if (error || !data.user) {
+      setLoading(false);
+      toast.error("Credenciales incorrectas", { description: "Correo o contraseña no coinciden" });
+      return;
+    }
+    const { data: p } = await supabase.from("profiles").select("nombre").eq("id", data.user.id).maybeSingle();
+    toast.success(`Bienvenido, ${p?.nombre ?? "usuario"}`, { description: "Conectado a la base de datos" });
+    navigate({ to: "/dashboard" });
   };
 
-  const submitReg = (e: React.FormEvent) => {
+  const submitReg = async (e: React.FormEvent) => {
     e.preventDefault();
     const er: Record<string, string> = {};
     if (reg.nombre.trim().length < 3) er.nombre = "Mínimo 3 caracteres";
@@ -87,10 +87,21 @@ function Login() {
     if (reg.password.length < 6) er.password = "Mínimo 6 caracteres";
     setRegErr(er);
     if (Object.keys(er).length) return void toast.error("Revisa los campos del registro");
-    if (!registrarUsuario({ ...reg, nombre: reg.nombre.trim(), correo: reg.correo.trim() })) {
+    setRegLoading(true);
+    const { data, error } = await supabase.auth.signUp({
+      email: reg.correo.trim(),
+      password: reg.password,
+      options: {
+        emailRedirectTo: window.location.origin,
+        data: { nombre: reg.nombre.trim(), rol: reg.rol === "Administrador" ? "admin" : "empleado" },
+      },
+    });
+    setRegLoading(false);
+    if (error || (data.user && data.user.identities?.length === 0)) {
       setRegErr({ correo: "Este correo ya está registrado" });
-      return void toast.error("El correo ya existe");
+      return void toast.error("No se pudo registrar", { description: error?.message ?? "El correo ya existe" });
     }
+    await supabase.auth.signOut();
     toast.success("Cuenta creada con éxito", { description: "Ahora puedes iniciar sesión" });
     setEmail(reg.correo.trim());
     setPass("");
