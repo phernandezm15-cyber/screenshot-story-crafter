@@ -35,7 +35,7 @@ export function exportPDF(title: string, sheets: Sheet[], file: string) {
       startY: y + (s.subtitle ? 8 : 3),
       head: [s.headers],
       body: s.rows.map((r) => r.map(String)),
-      foot: s.totals ? [s.totals.map(String)] : undefined,
+      ...(s.totals ? { foot: [s.totals.map(String)] } : {}),
       headStyles: { fillColor: [30, 58, 138], textColor: 255, fontStyle: "bold" },
       footStyles: { fillColor: [22, 163, 74], textColor: 255, fontStyle: "bold" },
       alternateRowStyles: { fillColor: [241, 245, 249] },

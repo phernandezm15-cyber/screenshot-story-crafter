@@ -14,7 +14,9 @@ import { PageHeader } from "@/components/PageHeader";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Barcode } from "@/components/Barcode";
 import { PageSkeleton, TableSkeleton, useDebouncedLoading, useFakeLoading } from "@/components/PageSkeleton";
-import { CATEGORIAS, estadoMed, estadoVariant, fmtFecha, nextId, q, useStore, type Medicamento } from "@/lib/store";
+import { CATEGORIAS, estadoMed, estadoVariant, fmtFecha, q, type Medicamento } from "@/lib/store";
+import { useData } from "@/lib/db";
+import { VoiceButton } from "@/components/VoiceButton";
 
 export const Route = createFileRoute("/_app/inventario")({
   head: () => ({
@@ -36,7 +38,7 @@ const empty = (): Medicamento => ({ id: "", codigo: "", nombre: "", principio: "
 
 function Inventario() {
   const pageLoading = useFakeLoading();
-  const { meds, saveMed, deleteMed } = useStore();
+  const { meds, saveMed, deleteMed, loading } = useData();
   const [search, setSearch] = useState("");
   const [chip, setChip] = useState<Chip>("todo");
   const [adv, setAdv] = useState<Adv>(emptyAdv);
@@ -64,7 +66,7 @@ function Inventario() {
   useEffect(() => setPage(1), [search, chip, adv]);
   const rows = filtered.slice((page - 1) * PAGE, page * PAGE);
 
-  if (pageLoading) return <PageSkeleton cards={0} />;
+  if (pageLoading || loading) return <PageSkeleton cards={0} />;
 
   const chips: { k: Chip; label: string; count: number }[] = [
     { k: "todo", label: "Mostrar Todo", count: meds.length },
@@ -81,6 +83,7 @@ function Inventario() {
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input placeholder="Buscar por nombre o código..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
+          <VoiceButton onText={setSearch} />
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline">
@@ -180,10 +183,10 @@ function Inventario() {
         <MedForm
           initial={editing}
           onClose={() => setEditing(null)}
-          onSave={(m) => {
+          onSave={async (m) => {
             const isNew = !m.id;
             const codigo = m.codigo || `750${Date.now().toString().slice(-8)}`;
-            saveMed(isNew ? { ...m, codigo, id: nextId("MED", meds.map((x) => x.id)) } : { ...m, codigo });
+            if (!(await saveMed({ ...m, codigo }))) return;
             toast.success(isNew ? "Producto guardado" : "Producto actualizado", { description: m.nombre });
             setEditing(null);
           }}
@@ -194,9 +197,8 @@ function Inventario() {
         onOpenChange={(o) => !o && setToDelete(null)}
         title="¿Eliminar medicamento?"
         description={`Se eliminará "${toDelete?.nombre}" del inventario. Esta acción no se puede deshacer.`}
-        onConfirm={() => {
-          if (toDelete) {
-            deleteMed(toDelete.id);
+        onConfirm={async () => {
+          if (toDelete && (await deleteMed(toDelete.id))) {
             toast.success("Producto eliminado", { description: toDelete.nombre });
           }
           setToDelete(null);
@@ -208,12 +210,12 @@ function Inventario() {
 
 function MedForm({ initial, onClose, onSave }: { initial: Medicamento; onClose: () => void; onSave: (m: Medicamento) => void }) {
   const [f, setF] = useState(initial);
-  const [err, setErr] = useState<Record<string, string>>({});
+  const [err, setErr] = useState<Partial<Record<keyof Medicamento, string>>>({});
   const set = <K extends keyof Medicamento>(k: K, v: Medicamento[K]) => setF({ ...f, [k]: v });
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    const er: Record<string, string> = {};
+    const er: Partial<Record<keyof Medicamento, string>> = {};
     if (!f.nombre.trim()) er.nombre = "Requerido";
     if (!f.principio.trim()) er.principio = "Requerido";
     if (!f.caducidad) er.caducidad = "Requerido";
@@ -222,7 +224,7 @@ function MedForm({ initial, onClose, onSave }: { initial: Medicamento; onClose: 
     else if (f.precioVenta < f.precioCompra) er.precioVenta = "Debe ser ≥ precio de compra";
     if (f.stock < 0 || !Number.isInteger(f.stock)) er.stock = "Entero ≥ 0";
     setErr(er);
-    if (Object.keys(er).length) return toast.error("Revisa los campos del formulario");
+    if (Object.keys(er).length) return void toast.error("Revisa los campos del formulario");
     onSave(f);
   };
 

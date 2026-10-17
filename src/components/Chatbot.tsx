@@ -40,12 +40,12 @@ export function Chatbot() {
       return top.length ? `Top productos más vendidos:\n${top.map(([n, c], i) => `${i + 1}. ${n} — ${c} uds.`).join("\n")}` : "Aún no hay ventas.";
     }
     if (/punto|cliente/.test(t)) {
-      const c = clientes.find((x) => t.includes(norm(x.nombre.split(" ")[0])));
+      const c = clientes.find((x) => t.includes(norm(x.nombre.split(" ")[0] ?? "")));
       if (c) return `${c.nombre} tiene ${c.puntos} Puntos Salud (NIT ${c.nit}).`;
       const top = [...clientes].sort((a, b) => b.puntos - a.puntos).slice(0, 3);
       return `Clientes con más Puntos Salud:\n${top.map((x) => `• ${x.nombre}: ${x.puntos} pts`).join("\n")}`;
     }
-    const m = meds.find((x) => t.includes(norm(x.nombre.split(" ")[0])) || t.includes(norm(x.principio.split(" ")[0])));
+    const m = meds.find((x) => t.includes(norm(x.nombre.split(" ")[0] ?? "")) || t.includes(norm(x.principio.split(" ")[0] ?? "")));
     if (m) return `${m.nombre} (${m.principio}): ${m.stock} uds. en stock, precio ${q(m.precioVenta)}, vence el ${m.caducidad}.`;
     return "No entendí del todo 🤔. Prueba con: vencimientos, stock crítico, ventas de hoy, más vendido, puntos de un cliente o el nombre de un producto.";
   };
