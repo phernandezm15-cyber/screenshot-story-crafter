@@ -210,12 +210,12 @@ function Inventario() {
 
 function MedForm({ initial, onClose, onSave }: { initial: Medicamento; onClose: () => void; onSave: (m: Medicamento) => void }) {
   const [f, setF] = useState(initial);
-  const [err, setErr] = useState<Record<string, string>>({});
+  const [err, setErr] = useState<Partial<Record<keyof Medicamento, string>>>({});
   const set = <K extends keyof Medicamento>(k: K, v: Medicamento[K]) => setF({ ...f, [k]: v });
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    const er: Record<string, string> = {};
+    const er: Partial<Record<keyof Medicamento, string>> = {};
     if (!f.nombre.trim()) er.nombre = "Requerido";
     if (!f.principio.trim()) er.principio = "Requerido";
     if (!f.caducidad) er.caducidad = "Requerido";
@@ -224,7 +224,7 @@ function MedForm({ initial, onClose, onSave }: { initial: Medicamento; onClose: 
     else if (f.precioVenta < f.precioCompra) er.precioVenta = "Debe ser ≥ precio de compra";
     if (f.stock < 0 || !Number.isInteger(f.stock)) er.stock = "Entero ≥ 0";
     setErr(er);
-    if (Object.keys(er).length) return toast.error("Revisa los campos del formulario");
+    if (Object.keys(er).length) return void toast.error("Revisa los campos del formulario");
     onSave(f);
   };
 

@@ -112,14 +112,14 @@ function Proveedores() {
 
 function ProvForm({ initial, onClose, onSave }: { initial: Proveedor; onClose: () => void; onSave: (p: Proveedor) => void }) {
   const [f, setF] = useState(initial);
-  const [err, setErr] = useState<Record<string, string>>({});
+  const [err, setErr] = useState<Partial<Record<keyof Proveedor, string>>>({});
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    const er: Record<string, string> = {};
+    const er: Partial<Record<keyof Proveedor, string>> = {};
     (["empresa", "contacto", "telefono", "direccion"] as const).forEach((k) => !f[k].trim() && (er[k] = "Requerido"));
     if (!EMAIL_RE.test(f.correo)) er.correo = "Correo inválido";
     setErr(er);
-    if (Object.keys(er).length) return toast.error("Revisa los campos del formulario");
+    if (Object.keys(er).length) return void toast.error("Revisa los campos del formulario");
     onSave(f);
   };
   const field = (k: keyof Proveedor, label: string) => (

@@ -38,7 +38,7 @@ export function VoiceButton({ onText, fallback = "Buscar Paracetamol" }: { onTex
       rec.interimResults = false;
       rec.maxAlternatives = 1;
       let got = false;
-      rec.onresult = (e) => { got = true; finish(e.results[0][0].transcript); };
+      rec.onresult = (e) => { got = true; finish(e.results[0]?.[0]?.transcript ?? ""); };
       rec.onerror = () => { if (!got) finish(fallback); };
       rec.onend = () => { if (!got) setListening(false); };
       recRef.current = rec;

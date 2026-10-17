@@ -43,7 +43,7 @@ function PassInput({ id, value, onChange }: { id: string; value: string; onChang
   );
 }
 
-const Err = ({ m }: { m?: string }) => (m ? <p className="text-xs text-destructive">{m}</p> : null);
+const Err = ({ m }: { m?: string | undefined }) => (m ? <p className="text-xs text-destructive">{m}</p> : null);
 
 function Login() {
   const navigate = useNavigate();
@@ -52,13 +52,13 @@ function Login() {
   const [pass, setPass] = useState("");
   const [loading, setLoading] = useState(false);
   const [regLoading, setRegLoading] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<Partial<Record<"email" | "pass", string>>>({});
   const [reg, setReg] = useState({ nombre: "", correo: "", password: "", rol: "Empleado" as Rol });
-  const [regErr, setRegErr] = useState<Record<string, string>>({});
+  const [regErr, setRegErr] = useState<Partial<Record<"nombre" | "correo" | "password", string>>>({});
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const er: Record<string, string> = {};
+    const er: Partial<Record<"email" | "pass", string>> = {};
     if (!email.trim()) er.email = "El correo es obligatorio";
     else if (!EMAIL_RE.test(email)) er.email = "Correo electrónico inválido";
     if (!pass) er.pass = "La contraseña es obligatoria";
@@ -81,7 +81,7 @@ function Login() {
 
   const submitReg = async (e: React.FormEvent) => {
     e.preventDefault();
-    const er: Record<string, string> = {};
+    const er: Partial<Record<"nombre" | "correo" | "password", string>> = {};
     if (reg.nombre.trim().length < 3) er.nombre = "Mínimo 3 caracteres";
     if (!EMAIL_RE.test(reg.correo)) er.correo = "Correo electrónico inválido";
     if (reg.password.length < 6) er.password = "Mínimo 6 caracteres";

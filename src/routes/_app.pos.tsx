@@ -105,10 +105,10 @@ function POS() {
   const puntosPrev = cliente ? puntosPor(t.total) : 0;
 
   const completar = async () => {
-    if (!cart.length) return toast.error("El ticket está vacío");
-    if (efectivo && cash < t.total - 0.001) return toast.error("Efectivo insuficiente", { description: `Faltan ${q(-cambio)}` });
+    if (!cart.length) return void toast.error("El ticket está vacío");
+    if (efectivo && cash < t.total - 0.001) return void toast.error("Efectivo insuficiente", { description: `Faltan ${q(-cambio)}` });
     const bad = cart.find((i) => i.cantidad > (meds.find((m) => m.id === i.medId)?.stock ?? 0));
-    if (bad) return toast.error("Stock insuficiente", { description: bad.nombre });
+    if (bad) return void toast.error("Stock insuficiente", { description: bad.nombre });
     const items = cart;
     const v = await registrarVenta(items, desc, cliente?.id ?? null);
     if (!v) return;

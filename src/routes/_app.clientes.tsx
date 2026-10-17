@@ -115,15 +115,15 @@ function Clientes() {
 
 function ClienteForm({ initial, onClose, onSave }: { initial: Cliente; onClose: () => void; onSave: (c: Cliente) => void }) {
   const [f, setF] = useState(initial);
-  const [err, setErr] = useState<Record<string, string>>({});
+  const [err, setErr] = useState<Partial<Record<keyof Cliente, string>>>({});
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    const er: Record<string, string> = {};
+    const er: Partial<Record<keyof Cliente, string>> = {};
     if (f.nombre.trim().length < 3) er.nombre = "Mínimo 3 caracteres";
     if (!/^[\d\s-]{8,}$/.test(f.telefono.trim())) er.telefono = "Teléfono inválido";
     if (!/^(CF|\d{4,}-?[\dkK])$/i.test(f.nit.trim())) er.nit = "NIT inválido (o CF)";
     setErr(er);
-    if (Object.keys(er).length) return toast.error("Revisa los campos del formulario");
+    if (Object.keys(er).length) return void toast.error("Revisa los campos del formulario");
     onSave({ ...f, nombre: f.nombre.trim(), telefono: f.telefono.trim(), nit: f.nit.trim().toUpperCase() });
   };
   const field = (k: "nombre" | "telefono" | "nit", label: string, ph?: string) => (

@@ -52,9 +52,9 @@ function Compras() {
     e.preventDefault();
     const c = Number(cant);
     const k = Number(costo);
-    if (!prov || !med) return toast.error("Selecciona proveedor y producto");
-    if (!Number.isInteger(c) || c <= 0) return toast.error("Cantidad inválida");
-    if (!(k > 0)) return toast.error("Costo unitario inválido");
+    if (!prov || !med) return void toast.error("Selecciona proveedor y producto");
+    if (!Number.isInteger(c) || c <= 0) return void toast.error("Cantidad inválida");
+    if (!(k > 0)) return void toast.error("Costo unitario inválido");
     if (!(await registrarCompra({ proveedorId: prov, medId: med, cantidad: c, costo: k, estado }))) return;
     const m = meds.find((x) => x.id === med)!;
     toast.success(estado === "Completado" ? "Compra registrada" : "Compra pendiente registrada", {

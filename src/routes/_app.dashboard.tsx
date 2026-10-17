@@ -222,7 +222,7 @@ function Dashboard() {
             <ScatterChart margin={{ left: 0, right: 10 }}>
               <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
               <XAxis type="number" dataKey="hora" domain={[7, 21]} ticks={[7, 9, 11, 13, 15, 17, 19, 21]} tickFormatter={(h) => `${h}:00`} stroke="var(--muted-foreground)" fontSize={12} />
-              <YAxis type="number" dataKey="dia" domain={[-0.5, 6.5]} ticks={[0, 1, 2, 3, 4, 5, 6]} tickFormatter={(d) => DIAS[d]} stroke="var(--muted-foreground)" fontSize={12} reversed />
+              <YAxis type="number" dataKey="dia" domain={[-0.5, 6.5]} ticks={[0, 1, 2, 3, 4, 5, 6]} tickFormatter={(d) => DIAS[d] ?? ""} stroke="var(--muted-foreground)" fontSize={12} reversed />
               <ZAxis type="number" dataKey="n" range={[80, 700]} />
               <Tooltip contentStyle={tooltipStyle} formatter={(v: number, k: string) => (k === "n" ? [`${v} ventas`, "Ventas"] : [v, k])} labelFormatter={() => ""} />
               <Scatter data={heat}>

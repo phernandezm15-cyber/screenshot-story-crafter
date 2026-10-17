@@ -71,7 +71,7 @@ function Reportes() {
   const file = `FarmaciaDB_${tipo}_${new Date().toISOString().slice(0, 10)}`;
   const run = (fn: () => void, label: string) => {
     const count = tipo === "ventas" ? ventasF.length : medsF.length;
-    if (!count) return toast.warning("No hay datos en el rango seleccionado");
+    if (!count) return void toast.warning("No hay datos en el rango seleccionado");
     try {
       fn();
       toast.success(`Reporte exportado a ${label}`, { description: `${count} registros` });
