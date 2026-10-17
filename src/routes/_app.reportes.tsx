@@ -12,7 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PageHeader } from "@/components/PageHeader";
 import { PageSkeleton, TableSkeleton, useDebouncedLoading, useFakeLoading } from "@/components/PageSkeleton";
-import { estadoMed, fmtFecha, fmtFechaHora, q, useStore } from "@/lib/store";
+import { estadoMed, fmtFecha, fmtFechaHora, q } from "@/lib/store";
+import { useData } from "@/lib/db";
 import { exportCSV, exportPDF, exportXLSX, type Sheet } from "@/lib/export";
 
 export const Route = createFileRoute("/_app/reportes")({
@@ -31,7 +32,7 @@ type Tipo = "ventas" | "inventario";
 
 function Reportes() {
   const loading = useFakeLoading();
-  const { ventas, meds } = useStore();
+  const { ventas, meds, loading: dbLoading } = useData();
   const [tipo, setTipo] = useState<Tipo>("ventas");
   const [range, setRange] = useState<DateRange | undefined>({ from: startOfMonth(new Date()), to: new Date() });
   const tableLoading = useDebouncedLoading([tipo, range?.from?.getTime(), range?.to?.getTime()]);
@@ -85,7 +86,7 @@ function Reportes() {
     { label: "Este Mes", r: () => ({ from: startOfMonth(new Date()), to: new Date() }) },
   ];
 
-  if (loading) return <PageSkeleton cards={0} />;
+  if (loading || dbLoading) return <PageSkeleton cards={0} />;
 
   return (
     <div>
@@ -145,7 +146,7 @@ function Reportes() {
             </TableHeader>
             <TableBody className="animate-in fade-in duration-300">
               {ventasF.map((v) => (
-                <TableRow key={v.id}>
+                <TableRow key={v.uuid}>
                   <TableCell className="font-medium">{v.id}</TableCell>
                   <TableCell>{fmtFechaHora(v.fecha)}</TableCell>
                   <TableCell>{v.vendedor}</TableCell>

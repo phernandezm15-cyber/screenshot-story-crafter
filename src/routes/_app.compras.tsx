@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PageHeader } from "@/components/PageHeader";
 import { PageSkeleton, useFakeLoading } from "@/components/PageSkeleton";
-import { fmtFechaHora, q, useStore, type Compra, type EstadoCompra } from "@/lib/store";
+import { fmtFechaHora, q, type Compra, type EstadoCompra } from "@/lib/store";
+import { useData } from "@/lib/db";
 import { suggestedSupplier } from "@/lib/insights";
 
 export const Route = createFileRoute("/_app/compras")({
@@ -28,7 +29,7 @@ export const Route = createFileRoute("/_app/compras")({
 
 function Compras() {
   const loading = useFakeLoading();
-  const { meds, proveedores, compras, registrarCompra, recibirCompra } = useStore();
+  const { meds, proveedores, compras, registrarCompra, recibirCompra, loading: dbLoading } = useData();
   const [prov, setProv] = useState("");
   const [med, setMed] = useState("");
   const [cant, setCant] = useState("");
@@ -47,14 +48,14 @@ function Compras() {
     toast.info("Datos sugeridos aplicados", { description: `${s.proveedor?.empresa} · ${q(s.costo ?? m?.precioCompra ?? 0)}` });
   };
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const c = Number(cant);
     const k = Number(costo);
     if (!prov || !med) return toast.error("Selecciona proveedor y producto");
     if (!Number.isInteger(c) || c <= 0) return toast.error("Cantidad inválida");
     if (!(k > 0)) return toast.error("Costo unitario inválido");
-    registrarCompra({ proveedorId: prov, medId: med, cantidad: c, costo: k, estado });
+    if (!(await registrarCompra({ proveedorId: prov, medId: med, cantidad: c, costo: k, estado }))) return;
     const m = meds.find((x) => x.id === med)!;
     toast.success(estado === "Completado" ? "Compra registrada" : "Compra pendiente registrada", {
       description: estado === "Completado" ? `${m.nombre}: +${c} unidades (stock ${m.stock + c})` : `${m.nombre}: ${c} unidades por recibir`,
@@ -66,7 +67,7 @@ function Compras() {
   const provName = (id: string) => proveedores.find((p) => p.id === id)?.empresa ?? "—";
   const medName = (id: string) => meds.find((p) => p.id === id)?.nombre ?? "—";
 
-  if (loading) return <PageSkeleton cards={0} />;
+  if (loading || dbLoading) return <PageSkeleton cards={0} />;
 
   return (
     <div>
@@ -127,7 +128,7 @@ function Compras() {
             <TableBody>
               {compras.map((c) => (
                 <TableRow key={c.id}>
-                  <TableCell className="font-medium">{c.id}</TableCell>
+                  <TableCell className="font-medium">{c.codigo}</TableCell>
                   <TableCell>{fmtFechaHora(c.fecha)}</TableCell>
                   <TableCell>{provName(c.proveedorId)}</TableCell>
                   <TableCell>{medName(c.medId)} <span className="text-muted-foreground">x{c.cantidad}</span></TableCell>
@@ -135,7 +136,7 @@ function Compras() {
                   <TableCell><Badge variant={c.estado === "Completado" ? "success" : "warning"}>{c.estado}</Badge></TableCell>
                   <TableCell className="whitespace-nowrap text-right">
                     {c.estado === "Pendiente" && (
-                      <Button size="icon" variant="ghost" className="text-success" aria-label="Marcar recibida" onClick={() => { recibirCompra(c.id); toast.success("Compra recibida", { description: `+${c.cantidad} ${medName(c.medId)}` }); }}>
+                      <Button size="icon" variant="ghost" className="text-success" aria-label="Marcar recibida" onClick={async () => { if (await recibirCompra(c.id)) toast.success("Compra recibida", { description: `+${c.cantidad} ${medName(c.medId)}` }); }}>
                         <PackageCheck />
                       </Button>
                     )}
@@ -151,7 +152,7 @@ function Compras() {
 
       <Dialog open={!!detalle} onOpenChange={(o) => !o && setDetalle(null)}>
         <DialogContent className="glass sm:max-w-md">
-          <DialogHeader><DialogTitle>Detalle de compra {detalle?.id}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Detalle de compra {detalle?.codigo}</DialogTitle></DialogHeader>
           {detalle && (() => {
             const p = proveedores.find((x) => x.id === detalle.proveedorId);
             const rows: [string, React.ReactNode][] = [
@@ -176,7 +177,7 @@ function Compras() {
           })()}
           <DialogFooter>
             {detalle?.estado === "Pendiente" && (
-              <Button variant="success" onClick={() => { recibirCompra(detalle.id); toast.success("Compra recibida"); setDetalle(null); }}>
+              <Button variant="success" onClick={async () => { if (await recibirCompra(detalle.id)) toast.success("Compra recibida"); setDetalle(null); }}>
                 <PackageCheck /> Marcar recibida
               </Button>
             )}

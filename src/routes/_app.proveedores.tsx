@@ -9,7 +9,9 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PageHeader } from "@/components/PageHeader";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { nextId, useStore, type Proveedor } from "@/lib/store";
+import { type Proveedor } from "@/lib/store";
+import { useData } from "@/lib/db";
+import { PageSkeleton, useFakeLoading } from "@/components/PageSkeleton";
 
 export const Route = createFileRoute("/_app/proveedores")({
   head: () => ({
@@ -27,11 +29,14 @@ const empty = (): Proveedor => ({ id: "", empresa: "", contacto: "", telefono: "
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 function Proveedores() {
-  const { proveedores, saveProv, deleteProv } = useStore();
+  const fake = useFakeLoading();
+  const { proveedores, saveProv, deleteProv, loading } = useData();
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<Proveedor | null>(null);
   const [toDelete, setToDelete] = useState<Proveedor | null>(null);
   const rows = proveedores.filter((p) => `${p.empresa} ${p.contacto}`.toLowerCase().includes(search.toLowerCase()));
+
+  if (fake || loading) return <PageSkeleton cards={0} />;
 
   return (
     <div>
@@ -81,9 +86,9 @@ function Proveedores() {
         <ProvForm
           initial={editing}
           onClose={() => setEditing(null)}
-          onSave={(p) => {
+          onSave={async (p) => {
             const isNew = !p.id;
-            saveProv(isNew ? { ...p, id: nextId("PRV", proveedores.map((x) => x.id)) } : p);
+            if (!(await saveProv(p))) return;
             toast.success(isNew ? "Proveedor registrado" : "Proveedor actualizado", { description: p.empresa });
             setEditing(null);
           }}
@@ -94,9 +99,8 @@ function Proveedores() {
         onOpenChange={(o) => !o && setToDelete(null)}
         title="¿Eliminar proveedor?"
         description={`Se eliminará "${toDelete?.empresa}". Esta acción no se puede deshacer.`}
-        onConfirm={() => {
-          if (toDelete) {
-            deleteProv(toDelete.id);
+        onConfirm={async () => {
+          if (toDelete && (await deleteProv(toDelete.id))) {
             toast.success("Proveedor eliminado", { description: toDelete.empresa });
           }
           setToDelete(null);
