@@ -185,3 +185,74 @@
     transition: all 0.2s ease;
   }
 }
+
+/* --- Dark mode aurora orbs --- */
+.dark .bg-app {
+  background-image:
+    radial-gradient(40rem 40rem at 10% 0%, oklch(0.45 0.2 262 / 35%), transparent 60%),
+    radial-gradient(36rem 36rem at 95% 25%, oklch(0.42 0.2 300 / 30%), transparent 60%),
+    radial-gradient(44rem 44rem at 50% 110%, oklch(0.4 0.18 250 / 28%), transparent 60%);
+  background-attachment: fixed;
+}
+
+/* --- Neon glow on hover --- */
+@utility glow {
+  &:hover {
+    box-shadow: 0 0 0 1px color-mix(in oklab, var(--primary) 50%, transparent), 0 0 22px 2px color-mix(in oklab, var(--primary-glow) 55%, transparent);
+  }
+}
+
+/* --- Animated AI border --- */
+@utility ai-border {
+  padding: 2px;
+  background: linear-gradient(120deg, var(--primary), var(--success), var(--primary-glow), oklch(0.6 0.2 300), var(--primary));
+  background-size: 300% 300%;
+  animation: gradient-shift 6s linear infinite;
+  box-shadow: 0 0 30px -8px color-mix(in oklab, var(--primary-glow) 60%, transparent);
+}
+
+/* --- Voice wave bars --- */
+.voice-bar {
+  width: 4px;
+  height: 18px;
+  border-radius: 9999px;
+  background: var(--primary);
+  animation: voice 0.9s ease-in-out infinite;
+}
+@keyframes voice {
+  0%, 100% { transform: scaleY(0.3); }
+  50% { transform: scaleY(1); }
+}
+
+/* --- Barcode scanner laser --- */
+.scanner-laser {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  height: 3px;
+  border-radius: 9999px;
+  background: var(--destructive);
+  box-shadow: 0 0 14px 3px var(--destructive);
+  animation: laser 1.2s ease-in-out infinite alternate;
+}
+@keyframes laser {
+  from { top: 12%; }
+  to { top: 86%; }
+}
+
+/* --- Rich toasts: colored border per action --- */
+[data-sonner-toast][data-type="success"] { border-left: 4px solid var(--success) !important; }
+[data-sonner-toast][data-type="error"] { border-left: 4px solid var(--destructive) !important; }
+[data-sonner-toast][data-type="warning"] { border-left: 4px solid var(--warning) !important; }
+[data-sonner-toast][data-type="info"] { border-left: 4px solid var(--primary) !important; }
+[data-sonner-toast] [data-icon] { animation: toast-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes toast-pop {
+  0% { transform: scale(0) rotate(-45deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+
+@media print {
+  body * { visibility: hidden; }
+  #recibo, #recibo * { visibility: visible; }
+  #recibo { position: absolute; left: 0; top: 0; width: 80mm; }
+}
