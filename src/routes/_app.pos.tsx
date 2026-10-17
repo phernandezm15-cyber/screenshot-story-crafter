@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { Minus, Plus, Search, Trash2, ShoppingCart, CheckCircle2, ScanBarcode, Printer, Keyboard } from "lucide-react";
+import { Minus, Plus, Search, Trash2, ShoppingCart, CheckCircle2, ScanBarcode, Printer, Keyboard, Maximize2, Loader2, Heart } from "lucide-react";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/PageHeader";
 import { PageSkeleton, useFakeLoading } from "@/components/PageSkeleton";
-import { useStore, q, calcTotals, IVA_RATE, fmtFechaHora, useCurrentUser, type Venta, type VentaItem } from "@/lib/store";
+import { q, calcTotals, IVA_RATE, fmtFechaHora, puntosPor, useUI, type VentaItem } from "@/lib/store";
+import { useData } from "@/lib/db";
+import { playSuccess } from "@/lib/sound";
+import { VoiceButton } from "@/components/VoiceButton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export const Route = createFileRoute("/_app/pos")({
   head: () => ({
@@ -23,13 +27,14 @@ export const Route = createFileRoute("/_app/pos")({
   component: POS,
 });
 
-type Recibo = Venta & { efectivo: number; cambio: number };
+interface Recibo { id: string; fecha: string; vendedor: string; items: VentaItem[]; subtotal: number; descuento: number; descPct: number; iva: number; total: number; efectivo: number; cambio: number; puntos: number; cliente: string | null }
 
 function POS() {
   const loading = useFakeLoading();
-  const meds = useStore((s) => s.meds);
-  const registrarVenta = useStore((s) => s.registrarVenta);
-  const user = useCurrentUser();
+  const { meds, clientes, registrarVenta, vendiendo, loading: dbLoading } = useData();
+  const focus = useUI((s) => s.focus);
+  const setFocus = useUI((s) => s.setFocus);
+  const [clienteId, setClienteId] = useState("cf");
   const [query, setQuery] = useState("");
   const [code, setCode] = useState("");
   const [cart, setCart] = useState<VentaItem[]>([]);
@@ -96,19 +101,33 @@ function POS() {
   const cash = Number(efectivo) || 0;
   const cambio = cash - t.total;
 
-  const completar = () => {
+  const cliente = clientes.find((c) => c.id === clienteId) ?? null;
+  const puntosPrev = cliente ? puntosPor(t.total) : 0;
+
+  const completar = async () => {
     if (!cart.length) return toast.error("El ticket está vacío");
     if (efectivo && cash < t.total - 0.001) return toast.error("Efectivo insuficiente", { description: `Faltan ${q(-cambio)}` });
     const bad = cart.find((i) => i.cantidad > (meds.find((m) => m.id === i.medId)?.stock ?? 0));
     if (bad) return toast.error("Stock insuficiente", { description: bad.nombre });
-    const v = registrarVenta(cart, desc, user?.nombre ?? "Admin");
-    const paid = efectivo ? cash : v.total;
-    setRecibo({ ...v, efectivo: paid, cambio: paid - v.total });
+    const items = cart;
+    const v = await registrarVenta(items, desc, cliente?.id ?? null);
+    if (!v) return;
+    const total = Number(v.total);
+    const paid = efectivo ? cash : total;
+    const r: Recibo = {
+      id: v.codigo, fecha: v.fecha, vendedor: v.vendedor_nombre, items, subtotal: Number(v.subtotal), descuento: Number(v.descuento),
+      descPct: Number(v.desc_pct), iva: Number(v.iva), total, efectivo: paid, cambio: paid - total, puntos: v.puntos, cliente: cliente?.nombre ?? null,
+    };
+    setRecibo(r);
     setCart([]);
     setDesc(0);
     setEfectivo("");
-    toast.success("Venta exitosa", { description: `${v.id} · ${q(v.total)}` });
-    if (v.total > 500) {
+    playSuccess();
+    toast.success("Venta guardada en la base de datos", {
+      description: `${r.id} · ${q(total)}${r.puntos ? ` · +${r.puntos} Puntos Salud` : ""}`,
+      action: { label: "Ver recibo", onClick: () => setRecibo(r) },
+    });
+    if (total > 500) {
       const end = Date.now() + 1500;
       (function frame() {
         confetti({ particleCount: 6, angle: 60, spread: 70, origin: { x: 0 } });
@@ -119,7 +138,7 @@ function POS() {
     }
   };
 
-  if (loading) return <PageSkeleton cards={2} />;
+  if (loading || dbLoading) return <PageSkeleton cards={2} />;
 
   return (
     <div>
@@ -127,18 +146,22 @@ function POS() {
         title="Punto de Venta"
         subtitle="Busca, escanea y cobra en segundos"
         actions={
+          <>
+          <Button variant={focus ? "default" : "outline"} size="sm" onClick={() => setFocus(!focus)}><Maximize2 /> {focus ? "Salir de Modo Enfoque" : "Modo Enfoque"}</Button>
           <span className="inline-flex items-center gap-2 rounded-full border bg-card/60 px-3 py-1.5 text-xs text-muted-foreground">
             <Keyboard className="h-3.5 w-3.5" /> Presiona <kbd className="rounded border bg-muted px-1.5 font-mono">Ctrl</kbd>+<kbd className="rounded border bg-muted px-1.5 font-mono">K</kbd> para buscar
           </span>
+          </>
         }
       />
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_440px]">
         <div className="glass rounded-2xl p-5">
-          <div className="mb-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+          <div className="mb-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto]">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input ref={searchRef} placeholder="Buscar producto... (Ctrl+K)" className="pl-9" value={query} onChange={(e) => setQuery(e.target.value)} />
             </div>
+            <VoiceButton onText={setQuery} />
             <form onSubmit={scanCode} className="relative">
               <ScanBarcode className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input placeholder="Escáner de código de barras (simulado)" className="pl-9 font-mono" value={code} onChange={(e) => setCode(e.target.value)} />
@@ -168,6 +191,17 @@ function POS() {
 
         <div className="glass flex h-fit flex-col rounded-2xl p-5 lg:sticky lg:top-20">
           <h2 className="mb-4 flex items-center gap-2 text-lg font-bold"><ShoppingCart className="h-5 w-5 text-primary" /> Ticket</h2>
+          <div className="mb-3 space-y-1">
+            <label className="text-xs font-semibold text-muted-foreground">Cliente (Puntos Salud)</label>
+            <Select value={clienteId} onValueChange={setClienteId}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cf">Consumidor Final</SelectItem>
+                {clientes.map((c) => <SelectItem key={c.id} value={c.id}>{c.nombre} · {c.puntos} pts</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {cliente && <p className="flex items-center gap-1 text-xs text-success"><Heart className="h-3 w-3" /> Ganará {puntosPrev} Puntos Salud con esta compra</p>}
+          </div>
           <div className="max-h-[35vh] space-y-2 overflow-auto">
             {cart.map((i) => (
               <div key={i.medId} className="flex items-center gap-2 rounded-xl border bg-card/60 p-3 animate-in fade-in slide-in-from-right-2">
@@ -216,8 +250,8 @@ function POS() {
               </span>
             </div>
           </div>
-          <Button variant="success" className="mt-5 h-14 w-full text-lg font-bold" onClick={completar}>
-            <CheckCircle2 className="!size-6" /> Completar Venta
+          <Button variant="success" className="glow mt-5 h-14 w-full text-lg font-bold" onClick={completar} disabled={vendiendo}>
+            {vendiendo ? <Loader2 className="!size-6 animate-spin" /> : <CheckCircle2 className="!size-6" />} Completar Venta
           </Button>
         </div>
       </div>
@@ -244,6 +278,7 @@ function POS() {
                 <p>NIT 1234567-8 · Ciudad de Guatemala</p>
                 <p>{recibo.id} · {fmtFechaHora(recibo.fecha)}</p>
                 <p>Atendió: {recibo.vendedor}</p>
+                {recibo.cliente && <p>Cliente: {recibo.cliente}</p>}
               </div>
               <div className="space-y-1 border-y border-dashed py-2">
                 {recibo.items.map((i) => (
@@ -261,6 +296,7 @@ function POS() {
                 <Row label="Efectivo" value={q(recibo.efectivo)} />
                 <Row label="Cambio" value={q(recibo.cambio)} />
               </div>
+              {recibo.cliente && <p className="mt-2 rounded bg-success/10 p-1.5 text-center font-bold text-success">Puntos ganados en esta compra: {recibo.puntos}</p>}
               <p className="mt-3 text-center">¡Gracias por su compra!</p>
             </div>
           )}
